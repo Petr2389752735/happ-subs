@@ -1,0 +1,33 @@
+name: Update Happ Subscription
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Download and merge links
+        run: |
+          > subscription.txt
+          for url in \
+            "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" \
+            "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" \
+            "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless.txt" \
+            "https://raw.githubusercontent.com/FreeFolksOn/abc-configs-free-vpn-proxy-list/main/vless.txt"; do
+            curl -s "$url" | grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> subscription.txt || true
+          done
+          sort -u subscription.txt -o subscription.txt
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add subscription.txt
+          git commit -m "Update subscription $(date)" || echo "No changes"
+          git push

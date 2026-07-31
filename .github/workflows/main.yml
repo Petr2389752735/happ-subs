@@ -15,28 +15,78 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download quality links
+      - name: Download ALL VPN servers
         run: |
-          echo "📥 Скачиваем только проверенные источники..."
+          echo "🚀 СКАЧИВАЕМ ВСЕ ДОСТУПНЫЕ СЕРВЕРЫ..."
+          echo ""
           
-          # Только igareck - самые надёжные для РФ
-          echo "  igareck (белые списки - для РФ)"
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp1.txt
+          # Очищаем файлы
+          > all_servers.txt
+          > stats.txt
           
-          echo "  igareck (чёрные списки - для обхода)"
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp2.txt
+          echo " Источники:"
           
-          # Объединяем и чистим
-          cat temp1.txt temp2.txt | grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' | sort -u > subscription.txt
+          # 1. igareck - белые списки
+          echo "  1. igareck (белые списки)"
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" >> all_servers.txt || true
           
-          # Берём только первые 50 (самые свежие = самые рабочие)
-          head -n 50 subscription.txt > temp.txt
-          mv temp.txt subscription.txt
+          # 2. igareck - чёрные списки
+          echo "  2. igareck (чёрные списки)"
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" >> all_servers.txt || true
+          
+          # 3. ebrasha - VLESS
+          echo "  3. ebrasha (VLESS)"
+          curl -s "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless.txt" >> all_servers.txt || true
+          
+          # 4. FreeFolksOn - все протоколы
+          echo "  4. FreeFolksOn (VLESS)"
+          curl -s "https://raw.githubusercontent.com/FreeFolksOn/abc-configs-free-vpn-proxy-list/main/vless.txt" >> all_servers.txt || true
+          
+          # 5. Delta-Kronecker
+          echo "  5. Delta-Kronecker"
+          curl -s "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/vless.txt" >> all_servers.txt || true
+          
+          # 6. MatinGhanbari
+          echo "  6. MatinGhanbari"
+          curl -s "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/vless.txt" >> all_servers.txt || true
+          
+          # 7. kort0881
+          echo "  7. kort0881"
+          curl -s "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/main/vless.txt" >> all_servers.txt || true
           
           echo ""
-          echo "✅ Готово! Серверов: $(wc -l < subscription.txt)"
+          echo "🧹 Фильтруем и чистим..."
           
-          rm -f temp1.txt temp2.txt
+          # Оставляем только рабочие протоколы
+          grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' all_servers.txt > filtered.txt || true
+          
+          # Убираем дубликаты
+          sort -u filtered.txt > unique.txt
+          
+          # Убираем пустые строки
+          grep -v '^$' unique.txt > subscription.txt
+          
+          # Считаем статистику
+          TOTAL=$(wc -l < subscription.txt)
+          VLESS=$(grep -c '^vless://' subscription.txt || echo 0)
+          VMESS=$(grep -c '^vmess://' subscription.txt || echo 0)
+          TROJAN=$(grep -c '^trojan://' subscription.txt || echo 0)
+          SS=$(grep -c '^ss://' subscription.txt || echo 0)
+          HYSTERIA=$(grep -c '^hysteria2://\|^hy2://' subscription.txt || echo 0)
+          
+          echo ""
+          echo "✅ СТАТИСТИКА:"
+          echo "   Всего серверов: $TOTAL"
+          echo "   VLESS: $VLESS"
+          echo "   VMess: $VMESS"
+          echo "   Trojan: $TROJAN"
+          echo "   Shadowsocks: $SS"
+          echo "   Hysteria2: $HYSTERIA"
+          echo ""
+          echo "💾 Файл subscription.txt готов!"
+          
+          # Удаляем временные файлы
+          rm -f all_servers.txt filtered.txt unique.txt stats.txt
 
       - name: Commit and push
         env:

@@ -15,78 +15,60 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download ALL VPN servers
+      - name: Download VPN servers
         run: |
-          echo "🚀 СКАЧИВАЕМ ВСЕ ДОСТУПНЫЕ СЕРВЕРЫ..."
-          echo ""
+          echo "Downloading VPN servers from all sources..."
           
-          # Очищаем файлы
           > all_servers.txt
-          > stats.txt
           
-          echo " Источники:"
-          
-          # 1. igareck - белые списки
-          echo "  1. igareck (белые списки)"
+          # Source 1: igareck - white lists
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" >> all_servers.txt || true
           
-          # 2. igareck - чёрные списки
-          echo "  2. igareck (чёрные списки)"
+          # Source 2: igareck - black lists
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" >> all_servers.txt || true
           
-          # 3. ebrasha - VLESS
-          echo "  3. ebrasha (VLESS)"
+          # Source 3: ebrasha - VLESS
           curl -s "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless.txt" >> all_servers.txt || true
           
-          # 4. FreeFolksOn - все протоколы
-          echo "  4. FreeFolksOn (VLESS)"
+          # Source 4: FreeFolksOn - VLESS
           curl -s "https://raw.githubusercontent.com/FreeFolksOn/abc-configs-free-vpn-proxy-list/main/vless.txt" >> all_servers.txt || true
           
-          # 5. Delta-Kronecker
-          echo "  5. Delta-Kronecker"
+          # Source 5: Delta-Kronecker
           curl -s "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/vless.txt" >> all_servers.txt || true
           
-          # 6. MatinGhanbari
-          echo "  6. MatinGhanbari"
+          # Source 6: MatinGhanbari
           curl -s "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/vless.txt" >> all_servers.txt || true
           
-          # 7. kort0881
-          echo "  7. kort0881"
+          # Source 7: kort0881
           curl -s "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/main/vless.txt" >> all_servers.txt || true
           
-          echo ""
-          echo "🧹 Фильтруем и чистим..."
+          echo "Filtering and removing duplicates..."
           
-          # Оставляем только рабочие протоколы
+          # Keep only valid protocols
           grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' all_servers.txt > filtered.txt || true
           
-          # Убираем дубликаты
+          # Remove duplicates
           sort -u filtered.txt > unique.txt
           
-          # Убираем пустые строки
+          # Remove empty lines
           grep -v '^$' unique.txt > subscription.txt
           
-          # Считаем статистику
+          # Count results
           TOTAL=$(wc -l < subscription.txt)
           VLESS=$(grep -c '^vless://' subscription.txt || echo 0)
           VMESS=$(grep -c '^vmess://' subscription.txt || echo 0)
           TROJAN=$(grep -c '^trojan://' subscription.txt || echo 0)
           SS=$(grep -c '^ss://' subscription.txt || echo 0)
-          HYSTERIA=$(grep -c '^hysteria2://\|^hy2://' subscription.txt || echo 0)
+          HYSTERIA=$(grep -c '^hysteria2://' subscription.txt || echo 0)
           
-          echo ""
-          echo "✅ СТАТИСТИКА:"
-          echo "   Всего серверов: $TOTAL"
-          echo "   VLESS: $VLESS"
-          echo "   VMess: $VMESS"
-          echo "   Trojan: $TROJAN"
-          echo "   Shadowsocks: $SS"
-          echo "   Hysteria2: $HYSTERIA"
-          echo ""
-          echo "💾 Файл subscription.txt готов!"
+          echo "Total servers: $TOTAL"
+          echo "VLESS: $VLESS"
+          echo "VMess: $VMESS"
+          echo "Trojan: $TROJAN"
+          echo "Shadowsocks: $SS"
+          echo "Hysteria2: $HYSTERIA"
           
-          # Удаляем временные файлы
-          rm -f all_servers.txt filtered.txt unique.txt stats.txt
+          rm -f all_servers.txt filtered.txt unique.txt
 
       - name: Commit and push
         env:
@@ -95,5 +77,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add subscription.txt
-          git commit -m "Update subscription $(date)" || echo "No changes"
+          git commit -m "Update subscription" || echo "No changes"
           git push

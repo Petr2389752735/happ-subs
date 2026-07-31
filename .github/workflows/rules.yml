@@ -17,49 +17,32 @@ jobs:
 
       - name: Download routing rules
         run: |
-          echo " СКАЧИВАЕМ АКТУАЛЬНЫЕ ПРАВИЛА..."
-          echo ""
+          echo "Downloading rules..."
           
-          # Скачиваем готовые правила от RoscomVPN (самые актуальные)
-          echo "  1. RoscomVPN Routing (DEFAULT)"
-          curl -s "https://raw.githubusercontent.com/hydraponique/roscomvpn-routing/main/HAPP/DEFAULT.JSON" > rules.json || true
+          curl -s -f "https://raw.githubusercontent.com/hydraponique/roscomvpn-routing/main/HAPP/DEFAULT.JSON" > rules.json || true
           
-          if [ -s rules.json ]; then
-            echo "✅ Правила загружены успешно!"
-            echo ""
-            echo "📊 Что включено:"
-            echo "   ✅ Белые списки (РФ, BY) → напрямую"
-            echo "   ✅ YouTube, Telegram → через VPN"
-            echo "   ✅ Реклама → блокируется"
-            echo "   ✅ Игровые платформы → напрямую"
-          else
-            echo "️ Не удалось скачать, создаём базовые правила..."
-            
-            # Резервный вариант - создаём свои правила
+          if [ ! -s rules.json ]; then
+            echo "Download failed, creating fallback rules..."
             cat > rules.json << 'EOF'
-{
-  "dns": {
-    "servers": [
-      {"tag": "remote", "address": "tls://8.8.8.8"},
-      {"tag": "local", "address": "https://dns.yandex.ru/dns-query"}
-    ],
-    "rules": [
-      {"geosite": "category-ru", "server": "local"}
-    ]
-  },
-  "routing": {
-    "rules": [
-      {"type": "field", "ip": ["geoip:private"], "outbound": "direct"},
-      {"type": "field", "geosite": ["category-ru", "yandex", "vk", "ok", "mailru"], "outbound": "direct"},
-      {"type": "field", "geosite": ["youtube", "telegram", "discord", "twitter", "facebook", "instagram"], "outbound": "proxy"},
-      {"type": "field", "geosite": ["category-ads-all", "category-ads-ru"], "outbound": "block"},
-      {"type": "field", "geosite": ["steam", "epicgames", "origin"], "outbound": "direct"}
-    ]
-  }
-}
-EOF
-            echo "✅ Созданы базовые правила"
+            {
+              "dns": {
+                "servers": [
+                  {"tag": "remote", "address": "tls://8.8.8.8"},
+                  {"tag": "local", "address": "https://dns.yandex.ru/dns-query"}
+                ]
+              },
+              "routing": {
+                "rules": [
+                  {"type": "field", "ip": ["geoip:private"], "outbound": "direct"},
+                  {"type": "field", "geosite": ["category-ru"], "outbound": "direct"},
+                  {"type": "field", "geosite": ["youtube", "telegram"], "outbound": "proxy"}
+                ]
+              }
+            }
+            EOF
           fi
+          
+          echo "Done. File size: $(wc -c < rules.json) bytes"
 
       - name: Commit and push
         env:
@@ -68,5 +51,5 @@ EOF
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rules.json
-          git commit -m "Update routing rules $(date)" || echo "No changes"
+          git commit -m "Update rules" || echo "No changes"
           git push

@@ -15,17 +15,63 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download and merge links
+      - name: Download and filter links
         run: |
+          # Очищаем файл
           > subscription.txt
-          for url in \
-            "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" \
-            "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" \
-            "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless.txt" \
-            "https://raw.githubusercontent.com/FreeFolksOn/abc-configs-free-vpn-proxy-list/main/vless.txt"; do
-            curl -s "$url" | grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> subscription.txt || true
-          done
-          sort -u subscription.txt -o subscription.txt
+          
+          echo "📥 Скачиваем источники..."
+          
+          # Приоритет 1: Проверенные источники (белые списки igareck)
+          echo " Приоритет 1: igareck (белые списки)"
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" | \
+            grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> priority1.txt || true
+          
+          # Приоритет 2: Чёрные списки igareck
+          echo "🔹 Приоритет 2: igareck (чёрные списки)"
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" | \
+            grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> priority2.txt || true
+          
+          # Приоритет 3: Остальные источники
+          echo "🔹 Приоритет 3: ebrasha"
+          curl -s "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless.txt" | \
+            grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> priority3.txt || true
+          
+          echo "🔹 Приоритет 3: FreeFolksOn"
+          curl -s "https://raw.githubusercontent.com/FreeFolksOn/abc-configs-free-vpn-proxy-list/main/vless.txt" | \
+            grep -E '^(vless|vmess|trojan|ss|hysteria2|hy2)://' >> priority3.txt || true
+          
+          # Убираем дубликаты внутри каждого приоритета
+          echo "🧹 Убираем дубликаты..."
+          sort -u priority1.txt -o priority1.txt
+          sort -u priority2.txt -o priority2.txt
+          sort -u priority3.txt -o priority3.txt
+          
+          # Собираем в один файл по приоритету
+          echo "📊 Собираем финальный список..."
+          cat priority1.txt priority2.txt priority3.txt > subscription.txt
+          
+          # Финальная проверка на дубли
+          sort -u subscription.txt -o temp.txt
+          mv temp.txt subscription.txt
+          
+          # Показываем статистику
+          echo ""
+          echo "✅ Статистика:"
+          echo "   Приоритет 1 (igareck белые): $(wc -l < priority1.txt) серверов"
+          echo "   Приоритет 2 (igareck чёрные): $(wc -l < priority2.txt) серверов"
+          echo "   Приоритет 3 (остальные): $(wc -l < priority3.txt) серверов"
+          echo "   ВСЕГО уникальных: $(wc -l < subscription.txt) серверов"
+          
+          # Ограничиваем до 200 серверов (топ по приоритету)
+          if [ $(wc -l < subscription.txt) -gt 200 ]; then
+            head -n 200 subscription.txt > temp.txt
+            mv temp.txt subscription.txt
+            echo "️  Ограничено до 200 серверов (топ по качеству)"
+          fi
+          
+          # Удаляем временные файлы
+          rm -f priority1.txt priority2.txt priority3.txt temp.txt
 
       - name: Commit and push
         env:

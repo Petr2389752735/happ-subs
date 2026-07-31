@@ -1,0 +1,72 @@
+name: Update Routing Rules
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download routing rules
+        run: |
+          echo " СКАЧИВАЕМ АКТУАЛЬНЫЕ ПРАВИЛА..."
+          echo ""
+          
+          # Скачиваем готовые правила от RoscomVPN (самые актуальные)
+          echo "  1. RoscomVPN Routing (DEFAULT)"
+          curl -s "https://raw.githubusercontent.com/hydraponique/roscomvpn-routing/main/HAPP/DEFAULT.JSON" > rules.json || true
+          
+          if [ -s rules.json ]; then
+            echo "✅ Правила загружены успешно!"
+            echo ""
+            echo "📊 Что включено:"
+            echo "   ✅ Белые списки (РФ, BY) → напрямую"
+            echo "   ✅ YouTube, Telegram → через VPN"
+            echo "   ✅ Реклама → блокируется"
+            echo "   ✅ Игровые платформы → напрямую"
+          else
+            echo "️ Не удалось скачать, создаём базовые правила..."
+            
+            # Резервный вариант - создаём свои правила
+            cat > rules.json << 'EOF'
+{
+  "dns": {
+    "servers": [
+      {"tag": "remote", "address": "tls://8.8.8.8"},
+      {"tag": "local", "address": "https://dns.yandex.ru/dns-query"}
+    ],
+    "rules": [
+      {"geosite": "category-ru", "server": "local"}
+    ]
+  },
+  "routing": {
+    "rules": [
+      {"type": "field", "ip": ["geoip:private"], "outbound": "direct"},
+      {"type": "field", "geosite": ["category-ru", "yandex", "vk", "ok", "mailru"], "outbound": "direct"},
+      {"type": "field", "geosite": ["youtube", "telegram", "discord", "twitter", "facebook", "instagram"], "outbound": "proxy"},
+      {"type": "field", "geosite": ["category-ads-all", "category-ads-ru"], "outbound": "block"},
+      {"type": "field", "geosite": ["steam", "epicgames", "origin"], "outbound": "direct"}
+    ]
+  }
+}
+EOF
+            echo "✅ Созданы базовые правила"
+          fi
+
+      - name: Commit and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rules.json
+          git commit -m "Update routing rules $(date)" || echo "No changes"
+          git push
